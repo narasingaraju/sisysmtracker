@@ -241,7 +241,6 @@ namespace sisysmtracker
                 }
             }
 
-            //string rtLine = "59 875 31.4 1.80 .89 1.00 1.00 30.2 2.09 .91 1.00 1.00 29.0 2.39 .93 1.00 1.00 27.8 2.73 .95 1.00 1.00 26.4 3.08 .98 1.00 1.00";
             Dictionary<string, siSysData> siDic = new Dictionary<string, siSysData>();
             foreach (string rtLine in rtLines)
             {
