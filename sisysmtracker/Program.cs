@@ -60,7 +60,8 @@ namespace sisysmtracker
         private static sysimID sid = new sysimID();
         public static Dictionary<string, string> Update_ASHP(string inPutFile, string siSysmID, int workSheetNo)
         {
-            String fileName = @"C:\Users\rxn14\Downloads\HP_Data1.xlsx";
+            String fileName = System.Configuration.ConfigurationSettings.AppSettings["inputFolder"]
+                + System.Configuration.ConfigurationSettings.AppSettings["outputFile"]; 
             Dictionary<string, string> ASHP_SrcOut = new Dictionary<string, string>();
 
             Dictionary<string, string> ASHP_Src = new Dictionary<string, string>();
@@ -202,7 +203,8 @@ namespace sisysmtracker
 
         public static void Update_ASHP_Excel(Dictionary<string, string> siDic, string siSysmID, int workSheetNo)
         {
-            String fileName = @"C:\Users\rxn14\Downloads\sis.xlsx";
+            String fileName = System.Configuration.ConfigurationSettings.AppSettings["inputFolder"]
+                + System.Configuration.ConfigurationSettings.AppSettings["outputFile"];
 
 
             Application xlApp = new Application();
@@ -283,7 +285,8 @@ namespace sisysmtracker
 
         public static void ReadExistingExcel(Dictionary<string, siSysData> siDic, string siSysmID, int workSheetNo)
         {
-            String fileName = @"C:\Users\rxn14\Downloads\sis.xlsx";
+            String fileName = System.Configuration.ConfigurationSettings.AppSettings["inputFolder"]
+                + System.Configuration.ConfigurationSettings.AppSettings["outputFile"];
 
 
             Application xlApp = new Application();
@@ -357,7 +360,8 @@ namespace sisysmtracker
 
         public static void ReadExistingExcel(Dictionary<string, HPData> siDic, string siSysmID, int workSheetNo)
         {
-            String fileName = @"C:\Users\rxn14\Downloads\sis.xlsx";
+            String fileName = System.Configuration.ConfigurationSettings.AppSettings["inputFolder"]
+                + System.Configuration.ConfigurationSettings.AppSettings["outputFile"];
 
 
             Application xlApp = new Application();
