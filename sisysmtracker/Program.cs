@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace sisysmtracker
@@ -48,9 +50,157 @@ namespace sisysmtracker
                 + InputPWR.ToString();
         }
     }
+
+    class sysimID
+    {
+        public string SyssimValue { get; set; }
+    }
     class Program
     {
-        public static void ReadExistingExcel(Dictionary<string, siSysData> siDic, string siSysmID, int workSheetNo)
+        private static sysimID sid = new sysimID();
+        public static Dictionary<string, string> Update_ASHP(string inPutFile, string siSysmID, int workSheetNo)
+        {
+            String fileName = @"C:\Users\rxn14\Downloads\HP_Data1.xlsx";
+            Dictionary<string, string> ASHP_SrcOut = new Dictionary<string, string>();
+
+            Dictionary<string, string> ASHP_Src = new Dictionary<string, string>();
+            ASHP_Src.Add("AHRI Certified Reference Number", "AHRIRefNo");
+            ASHP_Src.Add("Outdoor Unit Model Number  (Condenser or Single Package)", "CondenserModel");
+            ASHP_Src.Add("Indoor Unit Model Number (Evaporator and/or Air Handler)", "CoilModel");
+            ASHP_Src.Add("Furnace Model Number", "FurnModel");
+            ASHP_Src.Add("Cooling Capacity (A2) - Single or High Stage (95F),btuh", "Cap95");
+            ASHP_Src.Add("EER (A2) - Single or High Stage (95F)", "EER95");
+            ASHP_Src.Add("SEER", "SEER");
+            ASHP_Src.Add("Heating Capacity (H12) - Single or High Stage (47F),btuh", "Cap47");
+            ASHP_Src.Add("Heating COP (H12) - Single or High Stage (47F)", "COP47");
+            ASHP_Src.Add("HSPF (Region IV)", "HSPF");
+            ASHP_Src.Add("calc1", "HtgPower");
+            ASHP_Src.Add("Indoor Full-Load Heating Air Volume Rate (H12 SCFM)", "AVF");
+            ASHP_Src.Add("calc2", "PwrRtd");
+
+            ASHP_Src.Add("calc3", "AccCode");
+            ASHP_Src.Add("calc4", "UnitType");
+            ASHP_Src.Add("calc5", "Voltage");
+            ASHP_Src.Add("calc6", "Phase");
+            ASHP_Src.Add("calc7", "BaseModelID");
+
+
+            Application xlApp = new Application();
+            Workbook xlWorkBook = default(Workbook);
+            Worksheet xlWorkSheet = default(Worksheet);
+            object misValue = System.Reflection.Missing.Value;
+
+            try
+            {
+
+
+                if (xlApp == null)
+                {
+                    Console.WriteLine("Excel is not installed in the system...");
+                    return null;
+                }
+
+
+                xlWorkBook = xlApp.Workbooks.Open(fileName, 0, false, 5, "", "", false,
+                XlPlatform.xlWindows, "", true, false, 0, true, false, false);
+                xlWorkSheet = (Microsoft.Office.Interop.Excel.Worksheet)xlWorkBook.Worksheets.get_Item(workSheetNo);
+
+
+                siSysmID = siSysmID.Replace(";", "");
+
+                // Range xlRange = xlWorkSheet.UsedRange;
+
+                int targetRow = 1;//xlRange.Rows.Count + 1;
+                Range xlRange = xlWorkSheet.UsedRange;
+
+                for (int i = targetRow; i <= targetRow/*xlRange.Rows.Count*/; i++)
+                {
+                    for (int j = 1; j <= xlRange.Columns.Count; j++)
+                    {
+
+
+                        Range currentRange = (Range)xlWorkSheet.Cells[i, j];
+                        if (currentRange.Value2 != null)
+                        {
+
+                            string curVal = currentRange.Value2.ToString();
+                            if (ASHP_Src.ContainsKey(curVal))
+                            {
+                                currentRange = (Range)xlWorkSheet.Cells[i + 1, j];
+                                ASHP_SrcOut.Add(ASHP_Src[curVal], currentRange.Value2.ToString());
+                            }
+                        }
+
+
+                    }
+
+
+                }
+
+                foreach (KeyValuePair<string, string> kvp in ASHP_Src)
+                {
+                    if (kvp.Key.StartsWith("calc"))
+                    {
+                        switch (kvp.Key)
+                        {
+                            case "calc1":
+                                ASHP_SrcOut.Add("HtgPower", ((double.Parse(ASHP_SrcOut["Cap47"]) / 1000) /
+                                                double.Parse(ASHP_SrcOut["COP47"])).ToString());
+                                break;
+                            case "calc2":
+                                ASHP_SrcOut.Add("PwrRtd", ((double.Parse(ASHP_SrcOut["Cap95"]) / 1000) /
+                                                double.Parse(ASHP_SrcOut["EER95"])).ToString());
+                                break;
+                            case "calc3":
+                                ASHP_SrcOut.Add("AccCode", System.Configuration.ConfigurationSettings.AppSettings["AccCode"]);
+                                break;
+                            case "calc4":
+                                ASHP_SrcOut.Add("UnitType", System.Configuration.ConfigurationSettings.AppSettings["UnitType"]);
+                                break;
+                            case "calc5":
+                                ASHP_SrcOut.Add("Voltage", System.Configuration.ConfigurationSettings.AppSettings["Voltage"]);
+                                break;
+                            case "calc6":
+                                ASHP_SrcOut.Add("Phase", System.Configuration.ConfigurationSettings.AppSettings["Phase"]);
+                                break;
+                            case "calc7":
+                                ASHP_SrcOut.Add("BaseModelID", sid.SyssimValue);
+                                break;
+                                
+
+                        }
+                    }
+                }
+
+
+
+                xlApp.DisplayAlerts = false;
+
+
+
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+            finally
+            {
+                xlWorkBook.SaveAs(fileName, XlFileFormat.xlOpenXMLWorkbook, misValue, misValue, misValue, misValue,
+                XlSaveAsAccessMode.xlExclusive, misValue, misValue, misValue, misValue, misValue);
+
+                xlWorkBook.Close();
+                xlApp.Quit();
+
+                Marshal.ReleaseComObject(xlWorkSheet);
+                Marshal.ReleaseComObject(xlWorkBook);
+                Marshal.ReleaseComObject(xlApp);
+
+            }
+            return ASHP_SrcOut;
+        }
+
+        public static void Update_ASHP_Excel(Dictionary<string, string> siDic, string siSysmID, int workSheetNo)
         {
             String fileName = @"C:\Users\rxn14\Downloads\sis.xlsx";
 
@@ -78,6 +228,87 @@ namespace sisysmtracker
 
                 siSysmID = siSysmID.Replace(";", "");
 
+                // Range xlRange = xlWorkSheet.UsedRange;
+
+                int targetRow = 29;//xlRange.Rows.Count + 1;
+                Range xlRange = xlWorkSheet.UsedRange;
+
+                for (int i = targetRow; i <= targetRow/*xlRange.Rows.Count*/; i++)
+                {
+                    for (int j = 1; j <= xlRange.Columns.Count; j++)
+                    {
+
+                        Range currentRange = (Range)xlWorkSheet.Cells[i, j];
+                        if (currentRange.Value2 != null)
+                        {
+
+                            string curVal = currentRange.Value2.ToString();
+                            if (siDic.ContainsKey(curVal))
+                            {
+                                currentRange = (Range)xlWorkSheet.Cells[i + 1, j];
+                                // ASHP_SrcOut.Add(ASHP_Src[curVal], 
+                                currentRange.Value2 = siDic[curVal];
+                            }
+                        }
+
+
+                    }
+
+
+                }
+                xlApp.DisplayAlerts = false;
+
+
+
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+            finally
+            {
+                xlWorkBook.SaveAs(fileName, XlFileFormat.xlOpenXMLWorkbook, misValue, misValue, misValue, misValue,
+                XlSaveAsAccessMode.xlExclusive, misValue, misValue, misValue, misValue, misValue);
+
+                xlWorkBook.Close();
+                xlApp.Quit();
+
+                Marshal.ReleaseComObject(xlWorkSheet);
+                Marshal.ReleaseComObject(xlWorkBook);
+                Marshal.ReleaseComObject(xlApp);
+            }
+        }
+
+
+        public static void ReadExistingExcel(Dictionary<string, siSysData> siDic, string siSysmID, int workSheetNo)
+        {
+            String fileName = @"C:\Users\rxn14\Downloads\sis.xlsx";
+
+
+            Application xlApp = new Application();
+            Workbook xlWorkBook = default(Workbook);
+            Worksheet xlWorkSheet = default(Worksheet);
+            object misValue = System.Reflection.Missing.Value;
+
+            try
+            {
+
+
+                if (xlApp == null)
+                {
+                    Console.WriteLine("Excel is not installed in the system...");
+                    return;
+                }
+
+
+                xlWorkBook = xlApp.Workbooks.Open(fileName, 0, false, 5, "", "", false,
+                XlPlatform.xlWindows, "", true, false, 0, true, false, false);
+                xlWorkSheet = (Microsoft.Office.Interop.Excel.Worksheet)xlWorkBook.Worksheets.get_Item(workSheetNo);
+
+
+                siSysmID = siSysmID.Replace(";", "");
+                sid.SyssimValue = siSysmID;
                 // Range xlRange = xlWorkSheet.UsedRange;
 
                 int rowCount = 14;//xlRange.Rows.Count + 1;
@@ -151,7 +382,7 @@ namespace sisysmtracker
 
 
                 siSysmID = siSysmID.Replace(";", "");
-
+                sid.SyssimValue = siSysmID;
                 // Range xlRange = xlWorkSheet.UsedRange;
 
                 int rowCount = 14;//xlRange.Rows.Count + 1;
@@ -346,10 +577,10 @@ namespace sisysmtracker
         {
             string connectionString =
            "Data Source=RCHSQL8P1,1488;Persist Security Info=True;Initial Catalog=CoolingAndHeatPumpRatings;User Id=CoolingAndHeat;PASSWORD=C00l1ng@Heat;";
-
-
+           
             UnitConfig(connectionString, 2, "XP21-060-230-06", "XP21-060-230-06 - CHX35-60D-6F - TXV");
             UnitConfigHPDate(connectionString, 3, "XP21-060-230-06", "XP21-060-230-06 - CHX35-60D-6F - TXV");
+            Update_ASHP_Excel(Update_ASHP("", "", 1), "systemid", 5);
 
         }
     }
